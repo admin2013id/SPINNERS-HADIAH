@@ -469,7 +469,7 @@
             return "ZONK / COBA LAGI";
         }
 
-        // --- CLAIM CODE & NOTIFIKASI ADMIN ---
+        // --- CLAIM CODE & NOTIFIKASI EMAIL (WEB3FORMS) ---
         function claimCodeNexus() {
             if (!currentUser) return alert("Silakan login terlebih dahulu!");
 
@@ -502,17 +502,19 @@
             }
 
             if (isValid) {
+                // Update Data User
                 userData.token += reward;
                 userData.claimedCodes.push(code);
                 saveCurrentUser();
                 updateTokenDisplay();
                 
-                kirimNotifikasiAdmin(userData.nama, code, now, reward);
+                // Kirim Notifikasi Email via Web3Forms
+                kirimNotifikasiEmail(userData.nama, code, now, reward);
 
                 statusText.textContent = `✅ Berhasil! +${reward.toLocaleString()} Token`;
                 statusText.style.color = "#4ade80";
                 codeInput.value = "";
-                alert(`✅ Claim Berhasil!\n+${reward.toLocaleString()} Token telah ditambahkan.`);
+                alert(`✅ Claim Berhasil!\n+${reward.toLocaleString()} Token telah ditambahkan.\nNotifikasi telah dikirim ke Admin.`);
             } else {
                 statusText.textContent = "❌ Code tidak valid.";
                 statusText.style.color = "red";
@@ -520,15 +522,44 @@
             }
         }
 
-        function kirimNotifikasiAdmin(nama, code, waktu, reward) {
-            const pesanWA = `*NOTIFIKASI CLAIM CODE BARU*\n------------------------------\nNAMA : ${nama}\nCODE : ${code}\nWAKTU : ${waktu}\nREWARD : ${reward.toLocaleString()} Token\n------------------------------`.trim();
-            const nomorAdmin = "6285882382854"; 
-            const linkWA = `https://wa.me/${nomorAdmin}?text=${encodeURIComponent(pesanWA)}`;
+        function kirimNotifikasiEmail(nama, code, waktu, reward) {
+            const accessKey = "5a58df98-c319-4aa1-a9ea-2ae4117eca4d"; // Key Web3Forms Anda
             
-            const confirmWA = confirm("Klik OK untuk mengirim bukti claim ke WhatsApp Admin secara otomatis.");
-            if(confirmWA) { window.open(linkWA, '_blank'); }
-            
-            console.log("[NOTIFIKASI TERKIRIM]", pesanWA);
+            // Format Pesan Sesuai Permintaan
+            const messageBody = `
+NOTIFIKASI CLAIM CODE BARU
+------------------------------
+NAMA : ${nama}
+CODE : ${code}
+WAKTU : ${waktu}
+REWARD : ${reward.toLocaleString()} Token
+------------------------------
+            `;
+
+            const formData = new FormData();
+            formData.append("access_key", accessKey);
+            formData.append("subject", `Claim Code Baru: ${code} oleh ${nama}`);
+            formData.append("from_name", "NEXUS.ID System");
+            formData.append("message", messageBody);
+            // Anda bisa menambahkan field 'email' jika ingin membalas ke user, tapi ini opsional
+            // formData.append("email", "user@example.com"); 
+
+            fetch("https://api.web3forms.com/submit", {
+                method: "POST",
+                body: formData
+            })
+            .then(async (response) => {
+                let json = await response.json();
+                if (response.status == 200) {
+                    console.log("Email berhasil dikirim ke Admin:", json);
+                } else {
+                    console.log(response);
+                    console.log("Gagal mengirim email:", json.message);
+                }
+            })
+            .catch(error => {
+                console.log(error);
+            });
         }
 
         // --- TOKO ---
