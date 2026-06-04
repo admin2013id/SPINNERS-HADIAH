@@ -265,18 +265,20 @@
                 <button onclick="closeToko()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
             </div>
             <div class="shop-grid">
+                <!-- Format M (Juta) -->
                 <div class="shop-item" onclick="tukarHadiah('AKUN FF', 1000000)">
                     <div style="font-weight: bold;">AKUN FF</div>
-                    <div class="shop-price">1JT Token</div>
+                    <div class="shop-price">1M Token</div>
                 </div>
                 <div class="shop-item" onclick="tukarHadiah('AKUN ML', 5000000)">
                     <div style="font-weight: bold;">AKUN ML</div>
-                    <div class="shop-price">5JT Token</div>
+                    <div class="shop-price">5M Token</div>
                 </div>
                 <div class="shop-item" onclick="tukarHadiah('AKUN PUBG', 100000000)">
                     <div style="font-weight: bold;">AKUN PUBG</div>
-                    <div class="shop-price">100JT Token</div>
+                    <div class="shop-price">100M Token</div>
                 </div>
+                <!-- Pengecualian Random (Harga Tetap/JT) -->
                 <div class="shop-item" onclick="tukarHadiah('AKUN RANDOM', 5000000)">
                     <div style="font-weight: bold;">AKUN RANDOM</div>
                     <div class="shop-price">5JT Token</div>
@@ -286,54 +288,48 @@
     </div>
 
     <script>
+        // --- KONFIGURASI WIPES (RESET DATA) ---
+        // Tanggal Reset: 4 Juni 2026, Jam 12:00:00
+        const WIPE_DATE = new Date('2026-06-04T12:00:00'); 
+
         // --- DATA USER ---
         let allUsers = {};
         let currentUser = null;
-        // Default modal awal 10JT sesuai permintaan
-        const DEFAULT_TOKEN = 10000000; 
+        // Bonus Akun Baru: 50JT
+        const DEFAULT_TOKEN = 50000000; 
         
         let userData = { nama: "", token: DEFAULT_TOKEN, history: [], claimedCodes: [] };
         let otpBenar = "";
 
-        // --- MIGRATION & LOAD DATA ---
+        // --- SISTEM RESET OTOMATIS ---
+        function checkAndWipeData() {
+            const now = new Date();
+            const lastWipe = localStorage.getItem('nexusLastWipe');
+            
+            // Jika waktu sekarang MELEBIHI tanggal wipe, DAN (belum pernah wipe ATAU last wipe lebih lama dari tanggal wipe)
+            if (now > WIPE_DATE && (!lastWipe || new Date(lastWipe) < WIPE_DATE)) {
+                console.log("Waktunya Reset Data! Menghapus semua akun...");
+                
+                // Hapus semua data user
+                localStorage.removeItem('nexusUsers');
+                localStorage.removeItem('nexusCurrentUser');
+                localStorage.removeItem('nexusUser'); // Format lama
+                
+                // Tandai bahwa wipe sudah dilakukan
+                localStorage.setItem('nexusLastWipe', now.toISOString());
+                
+                alert("⚠️ SYSTEM RESET ⚠️\n\nSemua data akun telah direset pada jadwal yang ditentukan (4 Juni 12:00).\nSilakan daftar akun baru untuk mendapatkan bonus 50JT Token!");
+                
+                // Force reload untuk membersihkan state memori
+                location.reload();
+            }
+        }
+
+        // --- FUNGSI LOAD & SAVE ---
         function loadAllUsers() {
             const saved = localStorage.getItem('nexusUsers');
             if (saved) {
                 allUsers = JSON.parse(saved);
-            }
-
-            // --- MIGRATION SCRIPT (PENTING) ---
-            // Mengecek apakah ada data lama (format single user) yang belum migrasi
-            const oldData = localStorage.getItem('nexusUser'); // Format lama
-            const oldCurrent = localStorage.getItem('nexusCurrentUser'); // Nama user lama
-            
-            if (oldData && oldCurrent && !allUsers[oldCurrent]) {
-                try {
-                    const parsedOld = JSON.parse(oldData);
-                    // Migrasi data lama ke format baru
-                    // Jika token lama masih 1JT, kita upgrade jadi 10JT sesuai permintaan
-                    let newToken = parsedOld.token;
-                    if (newToken < DEFAULT_TOKEN) {
-                        newToken = DEFAULT_TOKEN; // Upgrade ke 10JT
-                    }
-
-                    allUsers[oldCurrent] = {
-                        nama: parsedOld.nama,
-                        token: newToken,
-                        history: parsedOld.history || [],
-                        claimedCodes: parsedOld.claimedCodes || []
-                    };
-                    
-                    // Simpan struktur baru
-                    saveAllUsers();
-                    
-                    // Hapus data lama agar tidak konflik
-                    localStorage.removeItem('nexusUser');
-                    
-                    console.log("Data lama berhasil dimigrasikan dan di-upgrade ke 10JT Token.");
-                } catch (e) {
-                    console.error("Gagal migrasi data", e);
-                }
             }
         }
 
@@ -352,15 +348,15 @@
         function loadData(nama) {
             loadAllUsers();
             if (allUsers[nama]) {
-                // User sudah terdaftar, load datanya
                 userData = allUsers[nama];
                 currentUser = nama;
             } else {
-                // User baru, buat data default (10JT)
+                // User Baru: Bonus 50JT
                 userData = { nama: nama, token: DEFAULT_TOKEN, history: [], claimedCodes: [] };
                 currentUser = nama;
                 allUsers[nama] = userData;
                 saveAllUsers();
+                alert(`🎉 Selamat Datang ${nama}!\nAnda mendapatkan bonus pendaftaran: 50.000.000 Token!`);
             }
             
             document.getElementById('displayNama').textContent = userData.nama;
@@ -426,7 +422,6 @@
         function logoutAkun() {
             if(confirm("Apakah Anda yakin ingin Log Out?")) {
                 currentUser = null;
-                // Reset temporary local variable, tapi data tersimpan di allUsers
                 userData = { nama: "", token: DEFAULT_TOKEN, history: [], claimedCodes: [] };
                 localStorage.removeItem('nexusCurrentUser');
                 
@@ -438,8 +433,14 @@
             }
         }
 
-        // --- SPINNER ---
-        const prizes = [ {name: "AKUN FF", prob: 10}, {name: "AKUN ML", prob: 5}, {name: "AKUN PUBG", prob: 2}, {name: "ZONK / COBA LAGI", prob: 83} ];
+        // --- SPINNER (PROBABILITAS BARU) ---
+        const prizes = [ 
+            {name: "ZONK / COBA LAGI", prob: 55}, 
+            {name: "AKUN FF", prob: 10}, 
+            {name: "AKUN ML", prob: 10}, 
+            {name: "AKUN RANDOM", prob: 15}, 
+            {name: "AKUN PUBG", prob: 10} 
+        ];
         
         function putarSpinner() {
             if (!currentUser) return alert("Silakan login terlebih dahulu!");
@@ -489,11 +490,14 @@
                 return;
             }
 
-            // Validasi Code Baru & Lama
+            // Validasi Code
             let reward = 0;
             let isValid = false;
 
-            if (code === "NEXUS.GAMESID") {
+            if (code === "GO.NEXUS") {
+                reward = 25000000; // 25JT Token
+                isValid = true;
+            } else if (code === "NEXUS.GAMESID") {
                 reward = 5000000; // 5JT Token
                 isValid = true;
             } else if (code.includes("NEXUS")) {
@@ -523,9 +527,8 @@
         }
 
         function kirimNotifikasiEmail(nama, code, waktu, reward) {
-            const accessKey = "5a58df98-c319-4aa1-a9ea-2ae4117eca4d"; // Key Web3Forms Anda
+            const accessKey = "5a58df98-c319-4aa1-a9ea-2ae4117eca4d"; 
             
-            // Format Pesan Sesuai Permintaan
             const messageBody = `
 NOTIFIKASI CLAIM CODE BARU
 ------------------------------
@@ -541,8 +544,6 @@ REWARD : ${reward.toLocaleString()} Token
             formData.append("subject", `Claim Code Baru: ${code} oleh ${nama}`);
             formData.append("from_name", "NEXUS.ID System");
             formData.append("message", messageBody);
-            // Anda bisa menambahkan field 'email' jika ingin membalas ke user, tapi ini opsional
-            // formData.append("email", "user@example.com"); 
 
             fetch("https://api.web3forms.com/submit", {
                 method: "POST",
@@ -553,7 +554,6 @@ REWARD : ${reward.toLocaleString()} Token
                 if (response.status == 200) {
                     console.log("Email berhasil dikirim ke Admin:", json);
                 } else {
-                    console.log(response);
                     console.log("Gagal mengirim email:", json.message);
                 }
             })
@@ -581,16 +581,20 @@ REWARD : ${reward.toLocaleString()} Token
             } else { alert("❌ Token tidak cukup!"); }
         }
 
-        // Init Check Session
+        // Init Check Session & Wipe
         window.onload = function() {
-            // Jalankan migrasi data dulu
-            loadAllUsers(); 
+            // 1. Cek apakah perlu reset data
+            checkAndWipeData();
             
+            // 2. Load session jika ada
             const savedCurrent = localStorage.getItem('nexusCurrentUser');
-            if (savedCurrent && allUsers[savedCurrent]) {
-                loadData(savedCurrent);
-                document.getElementById('step-name').classList.add('hidden');
-                document.getElementById('main-app').classList.remove('hidden');
+            if (savedCurrent) {
+                loadAllUsers(); // Load data users yang tersisa (jika tidak di-wipe)
+                if (allUsers[savedCurrent]) {
+                    loadData(savedCurrent);
+                    document.getElementById('step-name').classList.add('hidden');
+                    document.getElementById('main-app').classList.remove('hidden');
+                }
             }
         };
     </script>
